@@ -1,0 +1,60 @@
+---
+title: "Project 1"
+author: "Eya MAHDHAOUI ,Manon CASTANET,Aline RIVERA, Pedro José TRILLOS"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(knitr.duplicate.label = "allow")
+```
+
+### Introduction:  
+In this project we aim to calculate the probability that the price of coinbase cryptocurrency is lower by at least 9% on at least one of the next 5 trading days. 
+
+#### 1- Import data: 
+```{r , echo= TRUE }
+data = read.csv("bitcoinity_data.csv")
+View(data)
+```  
+
+#### 2- Clean the data:  
+We removed the missing values to be able to calculate the mean value.  
+
+```{r , echo= TRUE }
+coinbase_price= (data$coinbase)
+coinbase_price= na.omit(coinbase_price)
+```  
+#### 3- Calculation of the mean and standard deviation:  
+In order to caclculate the probability that the coinbase cryptocurrency will be lower by at least 9% on at least one of the next 5 trading days, we need to calculate first the mean and the standard deviation of the sample data.  
+
+```{r , echo = TRUE}
+m= mean(coinbase_price)
+std = sd(coinbase_price)
+p =coinbase_price[2504]
+```  
+
+#### 4- Calcutation of the probability:  
+We created a vector called "below" which contains 100000 zeros in order to put 
+```{r , echo = TRUE}
+below = rep(0, 100000)
+set.seed(2000)
+for (i in 1:100000) {
+  r = rnorm(5,m,std) 
+  Price = cumsum(r) 
+  minP = min(Price) 
+  below[i] = as.numeric(minP - p < 0,09)
+}
+```  
+
+```{r , echo = TRUE}
+mean(below)
+```  
+
+#### Conclusion:  
+The probability that the price of coinbase cryptocurrency is lower by at least 9% on at least one of the next 5 trading days is equal to 68%.In other words, an investor in coinbase cryptocurrency will be likely to lose at least 9% if he decided to sell in the next 5 trading days.    
+
+
+
+
