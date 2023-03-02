@@ -1,0 +1,341 @@
+---
+title: "project2"
+author: "Eya MAHDHAOUI, Manon CASTANET, Aline RIVERA, Pedro José TRILLOS"
+date: '`r Sys.Date()`'
+output:
+  word_document: default
+  html_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(knitr.duplicate.label = "allow") 
+```
+
+## Introduction  
+In this project we will conduct an exploratory data analysis for JPMorgan Chase & Co and Wells Fargo & Company stock prices over the last 8 years.  
+
+In our Analysis we will use the following packages :
+- tidyquant
+- tseries
+- moments
+
+### Data collection: Import data from YahooFinance:  
+To conduct our analysis, we require the JPMorgan Chase & Co and Wells Fargo Company stock prices. That's why, we need to use an application programming interface (API) in order to access data from the YahooFinance website.  
+
+
+```{r echo=TRUE}
+library(tidyquant)
+options("getSymbols.warning4.0"=TRUE)
+options("getSymbols.yahoo.warning"=TRUE)
+
+tickers = c("JPM","WFC") 
+getSymbols(tickers, from = '2014-01-01',
+           to = "2022-12-30",warnings = FALSE,
+           auto.assign = TRUE)
+jpm_close_prices=JPM[,4]
+wfc_close_prices= WFC[,4]
+plot(jpm_close_prices)
+plot(wfc_close_prices)
+```  
+
+#### log return using adjusted stock price 
+```{r , echo=TRUE}
+j = diff(log(jpm_close_prices),lag = 1)
+j= j[!is.na(j)]
+w = diff(log(wfc_close_prices),lag =1)
+w= w[!is.na(w)]
+plot(j, type = 'l')
+plot(w, type ='l')
+``` 
+
+### Exploratory Data Analysis (EDA) :  
+
+#### 1- Calculate general statistics:  
+
+##### JPMorgan Chase & Co:  
+
+```{r echo=TRUE,}
+j=as.numeric(j)
+mean_jpm = mean (j)
+mean_jpm
+```   
+
+```{r echo=TRUE,}
+median_jpm = summary(j)[3]
+median_jpm
+```   
+
+```{r echo=TRUE,}
+variance_jpm = var(j)
+variance_jpm
+```   
+
+```{r echo=TRUE,}
+Q1_jpm = summary(j)[2]
+Q1_jpm
+```     
+
+```{r echo=TRUE,}
+Q3_jpm = summary(j)[5]
+Q3_jpm
+```     
+
+```{r echo=TRUE,}
+kurtosis_jpm = kurtosis(j)
+kurtosis_jpm
+```     
+
+```{r echo=TRUE,}
+skewness_jpm = skewness(j)
+skewness_jpm
+```  
+
+
+##### Interpretation: 
+The variance of JPMorgan Chase & Co stock price is very close to the mean. Which means that all the stock prices in our sample are close to the sample mean.  
+
+The kurtosis of JPMorgan Chase & Co stock price is high and indicates a positive excess. It shows that the stock price of JPMorgan Chase & Co follows a leptokurtic distribution. 
+
+A leptokurtic distribution in finance indicates that investment returns may be susceptible to extreme values. Therefore, this investment is considered risky.  
+
+The skewness of the leptokurtic distribution is negative. It explains the dispersion of the measures (mean and median) and reveals that the tail extends towards more negative values on the left side of the distribution.
+
+##### Wells Fargo & Company:  
+
+
+```{r echo=TRUE,}
+w = as.numeric(w)
+mean_wfc = mean (w)
+mean_wfc
+```   
+
+```{r echo=TRUE,}
+median_wfc = summary(w)[3]
+median_wfc
+```   
+
+```{r echo=TRUE,}
+variance_wfc = var(w)
+variance_wfc
+```   
+
+```{r echo=TRUE,}
+Q1_wfc = summary(w)[2]
+Q1_wfc
+```     
+
+```{r echo=TRUE,}
+Q3_wfc = summary(w)[5]
+Q3_wfc
+```     
+
+```{r echo=TRUE,}
+kurtosis_wfc = kurtosis(w)
+kurtosis_wfc
+```     
+
+```{r echo=TRUE,}
+skewness_wfc = skewness(w)
+skewness_wfc
+```  
+
+##### Interpretation:  
+The results of the statistical measures of Wells Fargo & Company's stock price are nearly similar to those of JPMorgan Chase & Co's stock price.  
+
+On the other hand, Wells Fargo & Company's stock price's sample distribution is more dispersed.  
+
+#### 2- Check a potential presence of outliers. Interpret.  
+
+```{r echo=TRUE,}
+data = cbind(as.data.frame(j),as.data.frame(w))
+colnames(data)= c("JPM_ Close","WFC_Close")
+hist(data[,1],main= 'Historgram of JPMorgan Chase & Co stock price ')
+hist(data[,2],main= 'Historgram of JPMorgan Chase & Co stock price ')
+boxplot(data)
+```  
+
+There is many outliers in the two samples. 
+
+
+#### 3- Univariate tests:  
+  
+Now we will apply the following univariate tests on each sample:  
+
+- Shapiro-Wilk: Test of Normality  
+
+- Kolmogorov-Smirnov: Test of Normality  
+
+- Jarque-Bera: Test of Normality  
+
+- D’Agostino test of skewness  
+
+- Anscombe-Glynn test of kurtosis  
+
+- Bonett-Seier test of kurtosis  
+
+- Anderson-Darling goodness of fit test  
+
+
+##### JPMorgan Chase & Co:
+
+```{r echo=TRUE,}
+shapiro.test(j)
+```  
+The p-value < 0.05 implying that the distribution of the data
+is significantly different from normal distribution. In other words, we can
+assume the non-normality.  
+
+```{r echo=TRUE,}
+ks.test(j,"pnorm")
+```   
+The p-value < 0.05 implying that the distribution of the data
+is significantly different from normal distribution. In other words, we can
+assume the non-normality.  
+
+```{r echo=TRUE,}
+library(tseries)
+jarque.bera.test(j)
+```  
+
+The p-value < 0.05 implying that the distribution of the data
+is significantly different from normal distribution. In other words, we can
+assume the non-normality.  
+
+```{r echo=TRUE,}
+library(moments)
+agostino.test(j, alternative = "two.sided")
+```  
+The two sided p-value is greater than 0.05, therefore do not reject the null hypothesis, the data are not skewed.  
+
+```{r echo=TRUE,}
+anscombe.test (j, alternative = "two.sided" )
+```  
+The two sided p-value < 0.05, therefore we reject the null hypothesis, the data exhibit excess kurtosis relative to the normal distribution.  
+
+```{r echo=TRUE,}
+bonett.test (j, alternative = "two.sided" )
+```  
+The two sided p-value < 0.05, therefore we reject the null hypothesis, the data exhibit excess Geary's measure of kurtosis relative to the normal distribution. 
+
+##### Wells Fargo & Company:  
+
+```{r echo=TRUE,}
+shapiro.test(w)
+```  
+The p-value < 0.05 implying that the distribution of the data
+is significantly different from normal distribution. In other words, we can
+assume the non-normality.  
+
+```{r echo=TRUE,}
+ks.test(w,"pnorm")
+```   
+The p-value < 0.05 implying that the distribution of the data
+is significantly different from normal distribution. In other words, we can
+assume the non-normality.  
+
+```{r echo=TRUE,}
+jarque.bera.test(w)
+```  
+
+The p-value < 0.05 implying that the distribution of the data
+is significantly different from normal distribution. In other words, we can
+assume the non-normality.  
+ 
+```{r echo=TRUE,}
+agostino.test(w, alternative = "two.sided")
+```  
+The two sided p-value is lower than 0.05, therefore we reject the null hypothesis.  
+The data are skewed.  
+
+```{r echo=TRUE,}
+anscombe.test (w, alternative = "two.sided" )
+```    
+
+The two sided p-value < 0.05, therefore we reject the null hypothesis, the data exhibit excess kurtosis relative to the normal distribution.  
+
+```{r echo=TRUE,}
+bonett.test (w, alternative = "two.sided" )
+```  
+The two sided p-value < 0.05, therefore we reject the null hypothesis, exhibit excess Geary's measure of kurtosis relative to the normal distribution.  
+
+##### 4- Multivariate tests:  
+Now we will apply the following multivariate tests:
+
+- Pearson’s product moment correlation coefficient t-test  
+
+- Spearman rank correlation test  
+
+- Kendall’s tau correlation coefficient test
+
+  
+```{r}
+cor.test (j, w,method="pearson",alternative="two.sided")
+```  
+The correlation between jpm and wfc is reported as 0.8.  
+Since the p-value is lower than the critical value of 0.05 we reject the null hypothesis of zero correlation.  
+
+```{r}
+cor.test(j,w, method="spearman",alternative="two.sided")
+
+```  
+The Spearman rank correlation between x and y is 0.8.  
+Since the p-value is lower than the critical value of 0.05 we reject the null hypothesis of zero correlation.
+
+```{r}
+cor.test(j,w,method="kendal",alternative="two.sided")
+```  
+Since the p-value is lower than the critical value of 0.05 we reject the null hypothesis of zero correlation.  
+
+##### 5- Two sample t-test for the difference in sample means:  
+
+```{r}
+var(j)
+var(w)
+t.test(j,w)
+```
+The two sample observations are not normally distributed and they don't have the same variance. So we can not apply this test because it will give us an incorrect conclusion since its assumptions are not met.  
+
+##### 6- Conclusion:  
+
+We were able to undertake an exploratory investigation of the stock prices of JPMorgan Chase & Co and Wells Fargo & Company during the past eight years.
+
+We observed a correlation between the two stock prices and they both follow a leptokurtic distribution with a negative skewness.  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
