@@ -1,0 +1,269 @@
+---
+title: "Project 3"
+author: "Eya MAHDHAOUI ,Manon CASTANET,Aline RIVERA, Pedro José TRILLOS"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```  
+
+#Introduction:  
+
+This project will conduct an analysis of a quarterly time series data set containing 12 macroeconomic variables that contains 12 macroeconomic variables from 1950 to 2000.  
+
+It consists mainly of three primary parts. First, we will explore the data set by doing statistical calculations on the variables of interest. Second, we will use regression, and then we will test the models to see which model will deliver the best results.  
+
+
+### Exploratory Analysis:  
+
+```{r}
+library(moments)
+library(AER)
+```
+
+```{r}
+data("USMacroG")
+MacroDiff = as.data.frame(apply(USMacroG, 2, diff))
+data = na.omit(MacroDiff)
+attach(data)
+```
+
+####  consumption variable:  
+
+```{r echo=TRUE}
+summary(consumption)
+m=summary(consumption)[4] 
+median=summary(consumption)[3] 
+var(consumption) 
+```  
+
+```{r echo=TRUE}
+kurtosis(consumption) 
+skewness(consumption)
+```
+
+```{r echo=TRUE}
+boxplot(consumption) 
+hist(consumption) 
+```  
+
+#### dpi variable:  
+
+```{r echo=TRUE}
+summary(dpi)
+mean=summary(dpi)[4]
+median=summary(dpi)[3]
+var(dpi)
+```  
+
+
+```{r echo=TRUE}
+kurtosis(dpi)
+skewness(dpi)
+```  
+
+```{r echo=TRUE}
+boxplot(dpi)
+hist(dpi)
+```
+
+#### government variable:  
+
+```{r}
+summary(government)
+var(government)
+```  
+
+```{r}
+skewness(government)
+kurtosis(government)
+shapiro.test(government)
+```  
+
+```{r}
+plot(government)
+boxplot(government)
+hist(government)
+```
+
+#### unemployment rate variable:  
+
+```{r}
+summary(unemp)
+var(unemp)
+```  
+
+```{r}
+
+skewness(unemp)
+kurtosis(unemp)
+shapiro.test(unemp)
+```  
+
+```{r}
+plot(unemp)
+boxplot(unemp)
+hist(unemp)
+```
+
+#### Investment variable:  
+
+```{r}
+investment = MacroDiff$invest
+summary(investment)
+```  
+
+```{r}
+skewness(investment) 
+kurtosis(investment)
+shapiro.test(investment)
+```
+
+```{r}
+boxplot(investment)
+hist(investment)
+```  
+
+
+#### CPI variable:  
+
+```{r}
+summary(cpi)
+```  
+
+```{r}
+skewness(cpi) 
+kurtosis(cpi)
+shapiro.test(cpi)
+```
+
+```{r}
+boxplot(cpi)
+hist(cpi)
+```  
+
+#### Interest rate variable:  
+
+```{r}
+summary(interest)
+var(interest)
+```  
+
+```{r}
+skewness(interest)
+kurtosis(interest)
+shapiro.test(interest)
+```  
+
+```{r}
+plot(interest)
+boxplot(interest)
+hist(interest)
+```
+
+
+## 2-  The variables that can be used to get a better prediction:
+```{r}
+data =MacroDiff[,c("consumption","dpi","government","unemp","invest","cpi","interest")]
+boxplot(data)
+```
+As shown in the boxplot above, consumption, dpi, invest and government variables have many outliers which may effect the regression model. Unemployment rate,cpi and interest rate variables have less outliers and low variability.  
+
+## 3- Regression model:  
+
+```{r}
+model1 = lm(consumption ~ dpi + government + unemp + invest + cpi + interest)
+summary(model1)
+```
+According to the table above, the unemployment rate and the dpi variables are significant. 
+
+## 4 ANOVA: 
+
+```{r}
+Anova<-aov(consumption ~ dpi + government + unemp + invest + cpi + interest)
+summary(Anova)
+```
+According to ANOVA table, the unemployment rate and the dpi variables are significant. 
+
+## 5- AIC:  
+
+```{r}
+library(MASS)
+stepAIC(model1)
+```
+According to the table above we have to keep the following variables in our model: the dpi, the unemployment rate and the interest rate.  
+
+Final Model : consumption = b0 + b1(dpi) + b2(unemp) + b3(interest)
+
+## 6   Variable selection :  
+
+```{r echo=TRUE}
+model2 = lm(consumption~ dpi + unemp + interest + gdp + m1 + tbill + population+ inflation)
+summary(model2)
+stepAIC(model2)
+```
+According to the results giving by the stepAIC, we have to add m1 and remove the unemployment rate. 
+
+## 7  Interpret the improvment:  
+
+The improvement is significant because the AIC value decreased after we added the new variables ( gdp, m1, population). We also removed the unemployment rate variable from the first model because it was no longer significant when we added the new variables.  
+
+## 8 Leverage :  
+
+```{r}
+hats <- as.data.frame(hatvalues(model = model1))
+hats[order(-hatvalues(model1)), ]
+```  
+
+```{r}
+plot(hatvalues(model1), type = 'h')
+```
+
+```{r}
+hats <- as.data.frame(hatvalues(model = model2))
+hats[order(-hatvalues(model2)), ]
+```
+
+```{r}
+plot(hatvalues(model2), type = 'h')
+```
+
+
+The high-leverage point of model1 and model2 had respective leverages of 0.165602841 and 0.264967577, which are both less than 1, indicating that neither model contains an observation with the ability to affect the regression model.  
+
+## 9 Conclusion:  
+
+```{r}
+f_model1 = lm(consumption ~ dpi + unemp + interest)
+summary(f_model1)
+```  
+
+```{r}
+f_model2 = lm(consumption ~ dpi + interest + gdp + m1 + population)
+summary(f_model2)
+```  
+The results of the second transformation are better than the results of the first transformation since all of the variables are significant, the adjusted R squared is higher than the adjusted R squared of the first model, and the value of the AIC decreases.
+
+In conclusion, the estimated model for consumption is,
+
+consumption = -1.80 + 0.15(dpi) - 1.03(interest) + 0.32(gdp) + 0.40(m1) + 15.03(population)
+
+This means that, ceteris paribus:
+
+For every increase of 1 unit in interest, consumption will decrease by 1.03 units.
+For every increase of 1 unit in gdp, consumption will increase by 0.32 units.
+For every increase of 1 unit in m1, consumption will increase by 0.40 units.
+For every increase of 1 unit in population, consumption will increase by 15.03 units.
+
+
+
+
+
+
+
+
+
+
+
