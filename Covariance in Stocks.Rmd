@@ -1,0 +1,229 @@
+---
+title: "project 5"
+author: "Eya MAHDHAOUI , Manon CASTANET, Aline RIVERA, Pedro José TRILLOS"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```  
+
+
+# Framework :  
+In this project, an economic and statistical factor analysis will be carried out in order to determine whether or not there are any unexplained factors that may contribute to the co-variation among the stocks.
+ 
+We have chosen ten stocks from various industries, including the energy sector(ExxonMobil (NYSE:XOM) and Chevron (NYSE:CVX)), the healthcare sector(UnitedHealth Group (NYSE:UNH) and Johnson & Johnson (NYSE:JNJ)), the financial sector(Warren Buffett's Berkshire Hathaway (NYSE:BRK-A) and JPMorgan Chase (NYSE:JPM)), the information technology sector(Apple (NASDAQ:AAPL) and Microsoft (NASDAQ:MSFT)), and the real estate sector(American Tower (NYSE:AMT) and major shopping mall owner and operator Simon Property Group (NYSE:SPG)).  
+
+To conduct the economic factor analysis, we will consider macroeconomic factors such as the monthly inflation rate and unemployment rate in the United States from 2014/01 to 2022/10 . And,for the statistical factor analysis we will use the daily close prices of the selected stocks from 2014-01-01 to 2022-10-31 retrieved from YahooFinance.  
+
+Factor Analysis is a statistical method basically used to reduce the number of variables among a particular data and present it with a lower number of factors. 
+
+## Import packages:  
+```{r}
+library(tidyquant)
+library(ggplot2)
+library(reshape2)
+library(viridis)
+library(psych)
+library (GPArotation)
+library(readxl)
+library(xts)
+```
+
+
+```{r}
+options("getSymbols.warning4.0"=TRUE)
+options("getSymbols.yahoo.warning"=TRUE)
+tickers = c("XOM","CVX","UNH","JNJ","BRK-A","JPM","AAPL","MSFT","AMT","SPG")
+close_prices = NULL
+for (stock in tickers) {
+  close_prices <- cbind(close_prices, getSymbols(stock,from = '2014-01-01', to = '2022-10-31', warnings = FALSE, auto.assign = F)[,4])
+}
+```  
+
+```{r}
+portfolio_ret = diff(log(close_prices))[-1,]
+df_portfolio_ret = as.data.frame(portfolio_ret)
+colnames(df_portfolio_ret) = tickers
+head(df_portfolio_ret,4)
+```  
+
+
+## Correlation between the stocks:  
+
+After calculating the differentiated log return of each stock, we will see and measure the correlation between them.  
+
+```{r}
+correlation = cor(df_portfolio_ret)
+correlation_melt <- melt(correlation)
+ 
+ggplot(correlation_melt, aes(x = Var1,
+                  y = Var2,
+                  fill = value))+ geom_tile()+scale_fill_viridis(discrete = FALSE) + geom_text(aes(label = round(value, 2)))
+```    
+
+
+As shown in the heatmap above, where dark,light green and yellow indicate that the variables are highly correlated, we can see that there is a substantial correlation between the majority of the stocks. We can also see that the majority of stock pairs from the same sector are highly correlated, however SPG and AMT are low correlated with a value of 0.35.  
+
+# Economic Factor Analysis:  
+
+To conduct the economic factor analysis we will use monthly inflation and unemployment rates in the united states.  
+
+```{r}
+inflation = data.frame(read_excel('inflation_monthly_us.xlsx'))
+unemployment = data.frame(read_excel('unemployment_monthly_us.xlsx'))
+```  
+
+```{r}
+factors = cbind(inflation$Rate,unemployment$rate)
+colnames(factors) = c('inflation_rate', 'unemployment_rate')
+head(factors,5)  
+```  
+
+We need to change the returns of the stocks from daily to monthly values.  
+```{r}
+monthly_log_return<- to.monthly(portfolio_ret, indexAt = "last", OHLC = FALSE)
+``` 
+
+```{r}
+monthly_log_return = monthly_log_return[-107,]
+```  
+
+## Building the model:  
+We will apply an auto Regression model (AR) to extract the residuals that represent the unexpected shocks related to the inflation and unemployment rates.
+
+```{r}
+ar.mod <- ar(factors)
+res = ar.mod$resid[3:106,]
+```   
+
+```{r}
+monthly_log_return = monthly_log_return[3:106,]
+```
+
+After ensuring that all variables have the same length, we can apply the linear regression model to each of the stock's returns, defining each macroeconomic variable's residuals as independent variables.  
+
+```{r}
+lmfit = lm(monthly_log_return ~res[,1]+res[,2])
+summary(lmfit)
+```  
+As shown in the summary of the regression model, R squared is very low for all the stocks which means that the shocks of the macroeconomic factors does not have a significant impact on each of the stock's returns.  
+
+```{r}
+rsq = rep(0,10)
+slmfit = summary(lmfit)
+for (i in 1:10){rsq[i]= slmfit[[i]][[8]]} 
+beta_inflation = lmfit$coef[2,] 
+beta_unemployment = lmfit$coef[3,] 
+```   
+
+```{r}
+par(mfrow=c(1,3)) 
+barplot(rsq,horiz=T,names=names(beta_inflation),main="R squared") 
+barplot(beta_inflation,hori=T,main="beta inflation") 
+barplot(beta_unemployment,hori=T,main="beta unemployment")
+```  
+As shown in the the three barplots above, following the outcome of the summary of the economic model, we can conclude that the macroeconomic factor model is not significant. 
+
+# Statistical factor model:  
+## Evaluate the factorability of the data:  
+After detecting the correlation between the stocks, which identifies the existence of redundant variables that might be eliminated and presented by a smaller number of factors, we will do the following tests to confirm the factorability of our dataset:  
+
+- Bartlett’s test of sphericity  
+- Kaiser-Meyer-Olkin measure of sampling adequacy  
+
+```{r}
+cortest.bartlett(df_portfolio_ret);
+```  
+
+Bartlett's test was utilized to determine whether or not variables intercorrelate by comparing the observed correlation matrix to a "identity matrix." If this test is not statistically significant, a factor analysis should not be performed.  
+Bartlett's test is statistically significant in our case, indicating that the observed correlation matrix among the items is not an identity matrix. Which confirms that at least some of the variables are correlated with each other.  
+
+```{r}
+KMO(df_portfolio_ret)
+```  
+The Kaiser-Meyer-Olkin (KMO) test determines whether the partial correlations in the data are not close enough to zero to indicate the presence of at least one latent factor underlying the variables.  
+The lowest acceptable value is 0.50 that allows us to perform a factor analysis.
+In our case, the overall MSA=0,88 > 0,5 which allows us to conduct a factor analysis.  
+
+## Determining the number of factors to extract:  
+
+To determine the number of factors we should use to perform the factor model, we plot the scree plot of the returns. The scree presents the eigenvalues for all of our factors.To extract the optimal number of factors,we see where eigenvalues drop off sharply.
+
+```{r}
+scree(df_portfolio_ret)
+```  
+
+The scree plot above suggests that the number of factors is equal to three. After three factors the variability decreases.  
+
+```{r}
+fa_none = factanal(df_portfolio_ret[,1:10], 3, rotation = 'none')
+print(fa_none,cutoff = 0.1) 
+```  
+Uniquenesses are the variance in each item that is not explained by the three factors. For example, 67% of the variance of AMT return is not explained by the 3 factors.   
+
+Factor loading is basically the correlation coefficient for the variable and factor. It shows the variance explained by the variable on that particular factor. If the value is missing and not shown it means that it is basically less than 0,1.
+
+The chi-square statistic and p-value are testing the hypothesis that the model fits the data perfectly. When the p value is low, as it is here in our case, we can reject this hypothesis - which means that the 3 factor model does not fit the data perfectly.  
+
+```{r}
+factor.model <- fa(df_portfolio_ret[,1:10], nfactors = 3, fm="ols", max.iter = 100, rotate = "none")
+fa.diagram(factor.model)
+```   
+
+As shown in the diagram above, the majority of the variances are explained by the first factor by 47%.
+
+## Oblimin rotation: 
+
+Now, we we will use the oblim rotation. It is a type of oblique rotation which means it allows the factors to correlate. As opposed to orthogonal rotations (Varimax rotation). Instead of avoiding the relationship between our factors and splitting the sensitivity of their loadings over all of the factors, we find it more appropriate to employ the oblimin rotation because it allows correlation between the factors.  
+
+```{r}
+fa_oblimin = factanal(df_portfolio_ret[,1:10],3, rotation = 'oblimin')
+print(fa_oblimin,cutoff = 0.1)
+```  
+After using the oblimin rotation, the variability among the loadings changed. The first factor is basically explained by the stocks coming from the healthcare sector, financial sector and real state sector. The second factor is mostly explained by the energy sector stocks and the third factor is mostly explained by the stocks coming from the technology sector ( apple and microsoft ) .  
+
+But, p value remains low( 1.22e-67 < 0,05), in this case, the 3 factor model does not fit the data perfectly.  
+
+```{r}
+factor.model <- fa(df_portfolio_ret[,1:10], nfactors = 3, fm="ols", max.iter = 100, rotate = "oblimin")
+fa.diagram(factor.model)
+```   
+
+
+As shown in the diagram above, there is a high correlation between F1 and F2, also between F2 and F3. But almost a weak correlation between F1 and F3.
+
+# Conclusion:  
+
+Following the completion of both an economic and a statistical factor analysis, we are able to draw the conclusion that the statistical analysis provided us with a more useful outcome in comparison to the economical factor analysis. This is the case even though the p value was not significant to validate the selection of the appropriate number of factors suggested by the scree plot, without and with oblimin rotation.  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
